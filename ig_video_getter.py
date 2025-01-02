@@ -21,7 +21,9 @@ def get_video(url):
     print("Final URL:", final_url)
     post_id = cl.media_pk_from_url(final_url)
     print(post_id)
-    video_url = cl.media_info(post_id).video_url
+    media_info = cl.media_info(post_id)
+
+    video_url = media_info.video_url
     print(video_url)
     r = requests.get(video_url)
-    return BytesIO(r.content)
+    return [BytesIO(r.content), media_info.caption_text]
