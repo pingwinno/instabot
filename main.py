@@ -17,10 +17,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     out_message = await context.bot.send_message(chat_id=chat_id, text="Processing...")
     try:
-        await context.bot.send_video(chat_id, ig_video_getter.get_video(ig_url))
+        await context.bot.send_video(chat_id, ig_video_getter.get_video(ig_url),
+                                     reply_to_message_id=update.message.message_id)
         await out_message.delete()
     except Exception as err:
-        await context.bot.send_message(chat_id=chat_id, text=f"Error: {err}")
+        await context.bot.send_message(chat_id=chat_id, text=f"Error: {err}",
+                                       reply_to_message_id=update.message.message_id)
 
 
 if __name__ == '__main__':
