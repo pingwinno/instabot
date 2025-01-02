@@ -14,7 +14,13 @@ application = ApplicationBuilder().token(bot_token).build()
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ig_url = update.message.text
     print(ig_url)
-    await context.bot.send_video(update.message.chat_id, ig_video_getter.get_video(ig_url))
+    chat_id = update.message.chat_id
+    out_message = await context.bot.send_message(chat_id=chat_id, text="Processing...")
+    try:
+        await context.bot.send_video(chat_id, ig_video_getter.get_video(ig_url))
+        await out_message.delete()
+    except Exception as err:
+        await context.bot.send_message(chat_id=chat_id, text=f"Error: {err}")
 
 
 if __name__ == '__main__':
