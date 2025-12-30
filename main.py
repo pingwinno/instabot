@@ -25,12 +25,18 @@ async def handle_instagram_link(message: Message):
             await message.answer(media_album["error"])
             return
         try:
-            if media_album["media"]:
-                await message.answer_media_group(
-                    media=media_album["media"],
-                    reply_to_message_id=message.message_id
-                )
-                if media_album["captions"]:
+            if "media" in media_album:
+                media_group = media_album["media"]
+                if len(media_group) <= 10:
+                    await message.answer_media_group(media=media_group,
+                        reply_to_message_id=message.message_id)
+                else:
+                    await message.answer_media_group(media=media_group[:10],
+                        reply_to_message_id=message.message_id)
+                    await message.answer_media_group(media=media_group[10:],
+                        reply_to_message_id=message.message_id)
+
+                if "captions" in media_album:
                     text = (
                         f"<blockquote expandable>\n{media_album["captions"]}\n</blockquote>\n"
                     )
