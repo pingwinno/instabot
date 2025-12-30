@@ -64,14 +64,13 @@ async def get_posts(url):
     for item in post.get_sidecar_nodes():
         media_list.append({"url": item.video_url or item.display_url, "is_video": item.is_video})
     if len(media_list) < 1:
-        media_list.append({"url": post.video_url or post.display_url, "is_video": post.is_video})
+        media_list.append({"url": post.video_url or post.url, "is_video": post.is_video})
     return {"captions": post.caption, "media_list": media_list}
 
 
 async def get_story(username, target_media_id):
     profile = instaloader.Profile.from_username(L.context, username)
     user_id = profile.userid
-    cookies = L.context._session.cookies.get_dict()
 
     logging.info(f"Fetching stories for user: {username} ({user_id})...")
     try:
