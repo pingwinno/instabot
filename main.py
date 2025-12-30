@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import sys
 
 from aiogram import Bot, Dispatcher, Router, F
 from aiogram.enums import ParseMode
@@ -13,8 +14,11 @@ TOKEN = os.environ["BOT_TOKEN"]
 
 # SETUP
 router = Router()
-logging.basicConfig(level=logging.INFO)
-
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout, # Force output to stdout (helps with Docker)
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 @router.message(F.text.contains("instagram.com"))
 async def handle_instagram_link(message: Message):

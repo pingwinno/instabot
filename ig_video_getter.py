@@ -15,7 +15,7 @@ story_pattern = r"instagram\.com\/stories\/([^\/]+)\/([0-9]+)"
 
 USERNAME = os.environ["IG_USERNAME"]
 PASSWORD = os.environ["IG_PASSWORD"]
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 is_session_loaded = False
 
@@ -34,21 +34,21 @@ def get_loader():
     if os.path.exists(SESSION_FILE):
         try:
             global is_session_loaded
-            logging.info(f"Loading session from {SESSION_FILE}...")
+            logger.info(f"Loading session from {SESSION_FILE}...")
             L.load_session_from_file(USERNAME, filename=SESSION_FILE)
             is_session_loaded = True
             return L
         except Exception as e:
-            logging.warning(f"Session load failed: {e}")
+            logger.warning(f"Session load failed: {e}")
 
     if PASSWORD:
         try:
-            logging.info("Attempting password login...")
+            logger.info("Attempting password login...")
             L.login(USERNAME, PASSWORD)
             L.save_session_to_file(filename=SESSION_FILE)
             return L
         except Exception as e:
-            logging.error(f"Login failed: {e}")
+            logger.error(f"Login failed: {e}")
             return None
 
     return L
@@ -86,20 +86,30 @@ async def get_story(username, target_media_id):
                         }]
                     }
     except Exception as e:
-        logging.error(f"Error fetching stories (Session might be flagged): {e}")
+        logger.error(f"Error fetching stories (Session might be flagged): {e}")
         return {
             "error": f"Stories download is unavailable. Try again later."
         }
 
 
 async def download_file(url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://www.instagram.com/",
+        "Origin": "https://www.instagram.com"
+    }
+
     async with aiohttp.ClientSession() as session:
         fname = f"temp_{str(uuid.uuid4())}"
-        async with session.get(url) as resp:
+        async with session.get(url, headers=headers) as resp:
+            logger.info(f"Response from {url}: {resp.status}")
             if resp.status == 200:
                 async with aiofiles.open(fname, 'wb') as f:
                     async for chunk in resp.content.iter_chunked(1024 * 1024):
                         await f.write(chunk)
+            else:
+                logger.error(f"Error downloading file: {url}. Reason: {resp.reason}")
+                raise ValueError(f"Error downloading file: {url}. Reason: {resp.reason}")
 
         return fname
 
