@@ -8,4 +8,4 @@ RUN mkdir /usr/src/app/sound
 COPY *.py /usr/src/app
 
 
-CMD [ "python", "./main.py" ]
+CMD [ "python", "main.py" ]
