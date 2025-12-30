@@ -1,34 +1,66 @@
+import asyncio
+import logging
 import os
-import re
 
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, filters, MessageHandler
+from aiogram import Bot, Dispatcher, Router, F
+from aiogram.enums import ParseMode
+from aiogram.types import Message
 
 import ig_video_getter
 
-bot_token = os.environ['APIKEY']
+# CONFIG
+TOKEN = os.environ["BOT_TOKEN"]
 
-application = ApplicationBuilder().token(bot_token).build()
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ig_url = update.message.text
-    print(ig_url)
-    chat_id = update.message.chat_id
-    out_message = await context.bot.send_message(chat_id=chat_id, text="Processing...")
-    try:
-        video_data = ig_video_getter.get_video(ig_url)
-        await context.bot.send_video(chat_id, video_data[0],
-                                     reply_to_message_id=update.message.message_id)
-        await context.bot.send_message(chat_id=chat_id, text=video_data[1],
-                                       reply_to_message_id=update.message.message_id)
-        await out_message.delete()
-    except Exception as err:
-        await context.bot.send_message(chat_id=chat_id, text=f"Error: {err}",
-                                       reply_to_message_id=update.message.message_id)
+# SETUP
+router = Router()
+logging.basicConfig(level=logging.INFO)
 
 
-if __name__ == '__main__':
-    incorrect_import_handler = MessageHandler(filters.Regex(re.compile(r'https://www\.instagram\.com/.*')), start)
-    application.add_handler(incorrect_import_handler)
-    application.run_polling()
+@router.message(F.text.contains("instagram.com"))
+async def handle_instagram_link(message: Message):
+    temp_msg = await message.answer("⏳ Processing...")
+
+    async with ig_video_getter.get_media(message.text) as media_album:
+        if "error" in media_album:
+            await message.answer(media_album["error"])
+            return
+        try:
+            if media_album["media"]:
+                await message.answer_media_group(
+                    media=media_album["media"],
+                    reply_to_message_id=message.message_id
+                )
+                if media_album["captions"]:
+                    text = (
+                        f"<blockquote expandable>\n{media_album["captions"]}\n</blockquote>\n"
+                    )
+                    await message.answer(
+                        text=text,
+                        parse_mode=ParseMode.HTML,
+                        reply_to_message_id=message.message_id
+                    )
+            else:
+                await message.answer("No media found.")
+
+        except ValueError as e:
+            await message.reply(f"Error: {e}")
+        except Exception as e:
+            await message.reply(f"Whoops... Bro, go touch grass or something.")
+            await temp_msg.delete()
+            raise
+
+    await temp_msg.delete()
+
+
+async def main():
+    bot = Bot(token=TOKEN)
+    dp = Dispatcher()
+    logging.info("Bot starting polling...")
+    dp.include_router(router)
+
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
