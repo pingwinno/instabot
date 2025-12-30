@@ -4,10 +4,9 @@ import re
 import uuid
 from contextlib import asynccontextmanager
 
-import aiofiles
-import aiohttp
 import instaloader
 from aiogram.types import InputMediaVideo, FSInputFile, InputMediaPhoto
+from curl_cffi import AsyncSession
 from instaloader import Post
 
 post_reel_pattern = r"instagram\.com\/(p|reel)\/([a-zA-Z0-9_-]+)"
@@ -18,6 +17,7 @@ PASSWORD = os.environ["IG_PASSWORD"]
 logger = logging.getLogger(__name__)
 
 is_session_loaded = False
+
 
 def get_loader():
     UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -71,6 +71,7 @@ async def get_posts(url):
 async def get_story(username, target_media_id):
     profile = instaloader.Profile.from_username(L.context, username)
     user_id = profile.userid
+    cookies = L.context._session.cookies.get_dict()
 
     logging.info(f"Fetching stories for user: {username} ({user_id})...")
     try:
@@ -93,25 +94,15 @@ async def get_story(username, target_media_id):
 
 
 async def download_file(url):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://www.instagram.com/",
-        "Origin": "https://www.instagram.com"
-    }
-
-    async with aiohttp.ClientSession() as session:
-        fname = f"temp_{str(uuid.uuid4())}"
-        async with session.get(url, headers=headers) as resp:
-            logger.info(f"Response from {url}: {resp.status}")
-            if resp.status == 200:
-                async with aiofiles.open(fname, 'wb') as f:
-                    async for chunk in resp.content.iter_chunked(1024 * 1024):
-                        await f.write(chunk)
-            else:
-                logger.error(f"Error downloading file: {url}. Reason: {resp.reason}")
-                raise ValueError(f"Error downloading file: {url}. Reason: {resp.reason}")
-
-        return fname
+    fname = f"temp_{str(uuid.uuid4())}.mp4"
+    async with AsyncSession(impersonate="chrome120") as session:
+        resp = await session.get(url)
+        if resp.status_code == 200:
+            with open(fname, "wb") as f:
+                f.write(resp.content)
+            return fname
+        else:
+            raise ValueError(f"Error: {resp.status_code}")
 
 
 @asynccontextmanager
